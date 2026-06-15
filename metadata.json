@@ -1,0 +1,6 @@
+{
+  "name": "TrustSend",
+  "description": "TrustSend is an enterprise-grade digital money transfer and payment platform providing national/international transfers, bill payments, card management, and secure account verification.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

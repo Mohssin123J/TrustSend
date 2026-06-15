@@ -1,0 +1,162 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String         @id @default(uuid())
+  phoneNumber      String         @unique
+  fullName         String
+  nationalId       String         @unique
+  birthDate        String
+  address          String
+  city             String
+  email            String         @unique
+  status           String         @default("PENDING") // PENDING, VERIFIED, SUSPENDED
+  idFrontUrl       String?
+  idBackUrl        String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  
+  wallet           Wallet?
+  transactions     Transaction[]
+  transfers        Transfer[]     @relation("SenderTransfers")
+  billPayments     BillPayment[]
+  cardRequests     CardRequest[]
+  complaints       Complaint[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+}
+
+model OTP {
+  id          String   @id @default(uuid())
+  phoneNumber String
+  code        String
+  expiresAt   DateTime
+  verified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  balance   Float    @default(0.0) // Defaults in MAD
+  currency  String   @default("MAD")
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  id            String   @id @default(uuid())
+  reference     String   @unique // e.g., TX-123456
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String   // TRANSFER, DEPOSIT, BILL_PAY, CARD_FEE, RECEIVED
+  amount        Float    // Original amount
+  currency      String   // MAD, USD, EUR
+  status        String   @default("COMPLETED") // COMPLETED, PENDING, FAILED
+  description   String
+  createdAt     DateTime @default(now())
+  
+  receipt       Receipt?
+}
+
+model Transfer {
+  id               String   @id @default(uuid())
+  reference        String   @unique
+  senderId         String?
+  sender           User?    @relation("SenderTransfers", fields: [senderId], references: [id])
+  type             String   // NATIONAL, INTERNATIONAL
+  beneficiaryName  String
+  beneficiaryPhone String
+  beneficiaryId    String?  // CIN for national
+  country          String?  // Country for international
+  amount           Float
+  currency         String   @default("MAD")
+  reason           String?
+  status           String   @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  withdrawalCode   String?  // Generated for non-user cash pickup
+  createdAt        DateTime @default(now())
+}
+
+model BillPayment {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  serviceType String   // WATER, ELECTRICITY, INTERNET, RECHARGE, TAX, FINE, TICKET
+  billerName  String
+  accountNumber String
+  amount      Float
+  currency    String   @default("MAD")
+  status      String   @default("COMPLETED")
+  createdAt   DateTime @default(now())
+}
+
+model CardRequest {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  cardType     String   @default("VISA_CLASSIC") // VISA_CLASSIC, MASTERCARD_PREMIUM
+  cardNumber   String?  // Masked or generated on activation
+  status       String   @default("REQUESTED") // REQUESTED, PRINTING, SHIPPED, DELIVERED, ACTIVE, DEACTIVATED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Complaint {
+  id          String    @id @default(uuid())
+  reference   String    @unique // e.g., Ticket-9938
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  title       String
+  description String
+  documentUrl String?
+  status      String    @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  messages    String    // JSON serialized array of conversation messages
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  fullName  String
+  role      String   @default("ADMINISTRATOR") // SUPERADMIN, ADMINISTRATOR
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model Receipt {
+  id            String      @id @default(uuid())
+  transactionId String      @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  pdfUrl        String?
+  issuedAt      DateTime    @default(now())
+}
